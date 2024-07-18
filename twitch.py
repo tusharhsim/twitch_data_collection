@@ -189,23 +189,20 @@ class TwitchDataCollector:
     def store_message_data(self, channel_name):
         try:
             channel_name = '#' + channel_name
-            message_count, msg_length = 0, 256
+            msg_length = 256
             with socket.socket() as sock:
                 sock.connect((IRC_SERVER, IRC_PORT))
                 sock.send(f"PASS {IRC_TOKEN}\n".encode('utf-8'))
                 sock.send(f"NICK {IRC_NICKNAME}\n".encode('utf-8'))
                 sock.send(f"JOIN {channel_name}\n".encode('utf-8'))
 
-                while message_count < self.buffer_size:
+                while True:
                     resp = sock.recv(msg_length).decode('utf-8')
                     if resp.startswith('PING'):
                         sock.send("PONG\n".encode('utf-8'))
                     elif len(resp) > 0:
                         self.db.store_chat_data({'message': resp})
                         self.kafka_manager.send_to_kafka('chat_messages', {'message': resp})
-                    message_count += msg_length
-
-                logging.info('Alert: Chat message volume exceeded threshold!')
         except Exception as e:
             logging.error(f"Error in retrieving IRC messages: {e}")
 
